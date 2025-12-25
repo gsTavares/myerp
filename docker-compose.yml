@@ -1,0 +1,40 @@
+services:
+  postgres_master:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: myerpmasterdb
+      POSTGRES_USER: masteuser
+      POSTGRES_PASSWORD: master123
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    ports:
+      - "5432:5432"
+    volumes:
+      - master_data:/var/lib/postgresql/data
+      - ./master-init.sh:/docker-entrypoint-initdb.d/master-init.sh
+    command: postgres -c 'wal_level=replica' -c 'max_wal_senders=10' -c 'hot_standby=on'
+    networks:
+      - pg_replication_network
+
+  postgres_slave:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: myerpslavedb
+      POSTGRES_USER: slaveuser
+      POSTGRES_PASSWORD: slave123
+    ports:
+      - "5433:5432"
+    volumes:
+      - slave_data:/var/lib/postgresql/data
+      - ./slave-init.sh:/docker-entrypoint-initdb.d/slave-init.sh
+    depends_on:
+      - postgres_master
+    networks:
+      - pg_replication_network
+
+volumes:
+  master_data:
+  slave_data:
+
+networks:
+  pg_replication_network:
+    driver: bridge
